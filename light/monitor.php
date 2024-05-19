@@ -104,49 +104,27 @@
             <div class="container-fluid">
                 <div class="row justify-content-center">
                     <div class="col-12">
-                        <div class="row align-items-center mb-2">
-                            <div class="col">
-                                <h2 class="h5 page-title">Welcome Mr. <?php echo $user["FIRSTNAME"];?>!</h2>
-                            </div>
-                            <div class="col-auto">
-                                <form class="form-inline">
-                                    <div class="form-group d-none d-lg-inline">
-                                        <label for="reportrange" class="sr-only">Date Ranges</label>
-                                        <div id="reportrange" class="px-2 py-2 text-muted">
-                                            <span class="small"></span>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <button type="button" class="btn btn-sm"><span
-                                                class="fe fe-refresh-ccw fe-16 text-muted"></span></button>
-                                        <button type="button" class="btn btn-sm mr-2"><span
-                                                class="fe fe-filter fe-16 text-muted"></span></button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
                         <div class="row items-align-baseline">
+                            <div class="col-md-12 pt-4 mt-4">
+                                <h2>List Monitor</h2>
+                                <?php
+                                    while ($blist = mysqli_fetch_assoc($get_big_area)) {
+                                        
+                                        echo "<h6 class='pt-4'>".$blist['NAME']."</h6>";
+                                        
+                                        echo "<div class='d-flex flex-row flex-wrap '> ";
+                                        mysqli_data_seek($get_list, 0);
+                                            while($dlist = mysqli_fetch_assoc($get_list)) {
+                                                if ($dlist['ACCEPTED'] == 1 ){
+                                                    include "../components/analycis/listAnalicys.php";
+                                                }
+                                                    } 
+                                        echo "</div>";
+                                    }
 
 
-
-                            <?php if($user['ROLEID'] == 1 && !empty($user['LISTID'])) {
-                               include "../components/analycis/singleCandidateMonitor.php";
-                            }?>
-                            <?php if($user['ROLEID'] == 1 ) {
-                               include "../components/analycis/candidateListMonitor.php";
-                            }?>
-                            <?php
-                                if($user['ROLEID'] == 2) {
-                                include "../components/analycis/smallCandidate.php"; ?>
-
-                            <?php include "../components/analycis/votersArea.php" ?>
-                            <?php include "../components/analycis/voterVotes.php" ?>
-
-
-
-                            <!-- Striped rows -->
-                            <?php include '../components/analycis/smallArea.php';
-                            } ?>
+            ?>
+                            </div>
 
                         </div>
                     </div> <!-- .row-->

@@ -10,7 +10,7 @@
   
 ?>
 
-<div class="col-md-12 col-lg-8">
+<div class="col-md-12 col-lg-12">
     <div class="card shadow eq-card mb-4">
         <div class="card-body">
             <div class="chart-widget mb-2">

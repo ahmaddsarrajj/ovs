@@ -685,6 +685,7 @@ $list_query = "SELECT * FROM list";
                       </div>
                     </div>
                     <h4 class='title'>".$user['FIRSTNAME']." ". $user['LASTNAME']."</h4>
+                    <a href='".$row['WEBSITE']."'>".$user['FIRSTNAME']."-".$user['LASTNAME'].".com</a>
                     <p class='description'>' ".$row['DESCRIPTION']." '</p>
                     
                   </div>

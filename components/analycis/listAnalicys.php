@@ -1,20 +1,8 @@
-<div class="col-md-12 pt-4 mt-4">
-    <h2>All lists</h2>
-    <?php
-                mysqli_data_seek($get_list, 0);
-
-                
-                while ($blist = mysqli_fetch_assoc($get_big_area)) {
-                    
-                    echo "<h6 class='pt-4'>".$blist['NAME']."</h6>";
-                    
-                    echo "<div class='d-flex flex-row flex-wrap '>";
-                    mysqli_data_seek($get_list, 0);
-                        while($dlist = mysqli_fetch_assoc($get_list)) {
-
-    $get_list_users_query = "SELECT *
+<?php 
+    $get_list_users_query = "SELECT *, user.ID as ID
     FROM user
     JOIN electionprogram ON user.ID = electionprogram.USERID
+    JOIn box ON box.USERID = user.ID
     JOIN register ON user.REGISTERID = register.ID
     JOIN record ON register.RECORDID = record.ID
     JOIN smallarea ON record.SMALLAREAID = smallarea.ID
@@ -30,9 +18,9 @@
       echo "
     <div class='card list-card d-flex flex-column m-2' style='background:".$dlist['COLOR'].";width: 300px'>
     <div class='pt-4'>
-    <h3 class='d-flex flex-row'>
-    <div class='mr-2' style='background: ". $dlist['COLOR']."; width: 20px; height: 20px'></div>
-          <b class='text-white'> ".$dlist['NAME']." </b>
+        <h3 class='d-flex flex-row justify-content-around'>
+            <b class='text-white'>".$dlist['ID']." ".$dlist['NAME']." </b>
+            <div class='d-flex align-items-center p-2 ml-1 bg-light' style='height: 30px;'>".$dlist['VOTESNUM']."</div>
        </h3>
        <hr>
     </div>
@@ -44,15 +32,15 @@
          echo "
          <div class='d-flex flex-row p-4 align-items-end'>
          <img class='' src='".$rowlist['PROFILE']."'/>
-         <div class='d-flex align-items-center px-1 ml-1 flex-grow-1' style='background: white;height: 50px;'>".$rowlist['FIRSTNAME']." ".$rowlist['MIDDLENAME']." ".$rowlist['LASTNAME']."</div>
+         <div class='d-flex align-items-center px-1 ml-1 flex-grow-1 bg-light' style='height: 50px;'>".$rowlist['ID']." ".$rowlist['MIDDLENAME']." ".$rowlist['LASTNAME']."</div>
+         <div class='d-flex align-items-center px-2 ml-1 bg-light' style='height: 50px;'>".$rowlist['VOTENUMBER']."</div>
       </div>";
-
+      
   }
 
   echo "</div>";
 
 
     }
-}
-                        }
+
  ?>
