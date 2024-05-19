@@ -1,234 +1,239 @@
 import pandas as pd
-import random
-import numpy as np
-import sys
-import json
+import mysql.connector
+from mysql.connector import Error
+from sqlalchemy import insert, create_engine, Table, MetaData
+
+# Define the connection parameters
+server = "localhost"
+username = "root"
+password = ""
+db_name = "ovs"
+
+# SQL queries
+get_candidate = """
+SELECT 
+    user.ID as id, user.REGISTERID as register_id, user.LISTID as list_id, user.ROLEID as role_id, register.ID AS register_id, smallarea.ID as small_area_id
+FROM user
+JOIN register ON user.REGISTERID = register.ID
+JOIN record ON register.RECORDID = record.ID
+JOIN smallarea ON record.SMALLAREAID = smallarea.ID
+WHERE user.ROLEID = 1 and user.LISTID is not NULL;
+"""
+get_small_area = """
+SELECT `ID` as small_area_id, `BIGAREAID` as big_area_id, `PRIORITY` as priority, `SEATS_NUMBER` as seats_num FROM `smallarea`
+"""
+get_box = """
+SELECT ID as id, USERID AS user_id , VOTENUMBER as vote_number_result FROM `box`
+"""
+get_big_area = """
+SELECT ID as big_area_id FROM `bigarea`
+"""
+get_list_votes = """
+SELECT ID as list_id, VOTESNUM as votes_number FROM `list`
+"""
+get_total_seats_for_each_area = """
+SELECT SUM(SEATS_NUMBER) AS total_seats FROM smallarea WHERE BIGAREAID = %s
+"""
+
+def get_total_seats(cursor, big_area_id):
+    cursor.execute(get_total_seats_for_each_area, (big_area_id,))
+    result = cursor.fetchone()
+    if result and result['total_seats'] is not None:
+        return result['total_seats']
+    return 0  # Default to 0 if no seats found
+
+# SQL query to get total votes per list for a specific big area
+get_total_votes_per_list_query = """
+SELECT list.ID as list_id, VOTESNUM as votes_number 
+FROM `list`
+JOIN user ON user.LISTID = list.ID
+JOIN register ON user.REGISTERID = register.ID
+JOIN record ON record.ID = register.RECORDID
+JOIN smallarea ON smallarea.ID = record.SMALLAREAID
+JOIN bigarea ON bigarea.ID = smallarea.BIGAREAID
+WHERE bigarea.ID = %s 
+GROUP BY list.ID
+"""
+
+def get_total_votes_per_list(cursor, big_area_id):
+    cursor.execute(get_total_votes_per_list_query, (big_area_id,))
+    results = cursor.fetchall()
+    if results:
+        list_votes_df = pd.DataFrame(results)
+        total_votes_per_list = list_votes_df.set_index('list_id')['votes_number']
+        return total_votes_per_list
+    return pd.Series()  # Return an empty Series if no data is found
+
+try:
+    # Establish the connection
+    connection = mysql.connector.connect(
+        host=server,
+        user=username,
+        password=password,
+        database=db_name
+    )
+
+    if connection.is_connected():
+        print("Successfully connected to the database")
+
+        # Create a cursor to execute the queries
+        cursor = connection.cursor(dictionary=True)
+
+        # Execute and fetch all queries
+        cursor.execute(get_candidate)
+        data = cursor.fetchall()
+        cursor.execute(get_small_area)
+        small_area_data = cursor.fetchall()
+        cursor.execute(get_box)
+        box_data = cursor.fetchall()
+        cursor.execute(get_big_area)
+        big_area_data = cursor.fetchall()
+        cursor.execute(get_list_votes)
+        list_votes_data = cursor.fetchall()
+
+    # Create DataFrames
+    merged_df = pd.DataFrame(data)
+    small_area_df = pd.DataFrame(small_area_data)
+    big_area_df = pd.DataFrame(big_area_data)
+    box_df = pd.DataFrame(box_data)
+    list_votes_df = pd.DataFrame(list_votes_data)
+
+    # Add a new column to store total seats
+    big_area_df['total_seats'] = None
+
+    # Iterate over the big_area_df DataFrame
+    for index, row in big_area_df.iterrows():
+        big_area_id = row['big_area_id']
+        total_seats = get_total_seats(cursor, big_area_id)
+        big_area_df.at[index, 'total_seats'] = total_seats
+
+        # Calculate total votes per list
+        total_votes_per_list = get_total_votes_per_list(cursor, big_area_id)
+        total_votes_per_big_area= 0
+        total_votes_per_big_area = total_votes_per_list.sum()
+
+        # Calculate the quotient of all lists
+        first_quotient_lists = total_votes_per_big_area / total_seats
+        
+        # Compare total votes per list with the quotient
+        first_result = total_votes_per_list[total_votes_per_list >= first_quotient_lists]
+
+        # Get the failed lists (lists with total votes less than the quotient)
+        failed_lists = total_votes_per_list[total_votes_per_list < first_quotient_lists]
+
+        # Get the total vote numbers of the failed lists
+        failed_lists_total_votes = failed_lists.sum()
+
+        # Calculate the difference between total votes and total votes per list
+        second_quotient_lists = (total_votes_per_big_area - failed_lists_total_votes) / total_seats
+
+        # Return the division result
+        division_result = first_result / second_quotient_lists
+
+        # Calculate the fractional part of the division result
+        fractional_part = division_result - division_result.astype(int)
+
+        # Sort the lists by their fractional part in descending order
+        sorted_lists_by_fractional = fractional_part.sort_values(ascending=False)
+
+        # Get the integer part of the division result
+        seat_number_of_each_list = division_result.astype(int)
+        
+        repeat = total_seats - seat_number_of_each_list.sum()
+        
+        # Get the index of the list with the highest fractional part
+        for index in range(int(repeat)):
+            index_of_winner = sorted_lists_by_fractional.index[index]
+            # Replace the list with the highest fractional part with index_of_winner
+            seat_number_of_each_list[index_of_winner] += 1
+
+        # # Merge the total votes for each combination with the box_df DataFrame
+    box_df = pd.merge(box_df, merged_df[['id','small_area_id', 'list_id']], left_on='user_id', right_on='id', how='left')
+    
+
+    for index, row in big_area_df.iterrows():
+
+        # Group box_df by small_area_id and calculate the sum of vote_number_result
+        sum_of_votes_per_small_area = box_df.groupby('small_area_id')['vote_number_result'].sum()
+
+        # Merge the sum_of_votes_per_small_area back into box_df
+    box_df = pd.merge(box_df, sum_of_votes_per_small_area, on='small_area_id', suffixes=('', '_sum'))
+
+#hereeeeeeee
+    # Calculate the percentage of vote_number_result for each candidate
+    box_df['percentage_of_votes_per_small_area'] = (box_df['vote_number_result'] / box_df['vote_number_result_sum']) * 100
+
+    # Sort candidates within each list by vote_number_result_sum
+    box_df['rank_within_list'] = box_df.groupby('list_id')['percentage_of_votes_per_small_area'].rank(ascending=False)
+
+    # Sort candidates within each small area by vote_number_result_sum
+    box_df['rank_within_small_area'] = box_df.groupby('small_area_id')['percentage_of_votes_per_small_area'].rank(ascending=False)
+
+    # Merge the box_df DataFrame with the small_area_df DataFrame to get the rank_within_small_area for each user_id
+    merged_box_small_area_df = pd.merge(box_df, small_area_df[['small_area_id', 'seats_num']], on='small_area_id', how='left')
+
+    # Sort the merged DataFrame by small_area_id and rank_within_small_area
+    merged_box_small_area_df.sort_values(by=['small_area_id', 'rank_within_small_area'], inplace=True)
+
+    # Create an empty DataFrame to store the distribution of user_ids among seats
+    seats_distribution_df = pd.DataFrame(columns=['small_area_id', 'seat_number', 'user_id'])
+    print(seats_distribution_df)
+
+    # Initialize an empty list to store the data
+    seats_distribution_data = []
+
+        # Create a dictionary to map user_id to list_id
+    user_to_list_mapping = merged_box_small_area_df.set_index('user_id')['list_id'].to_dict()
+
+    # Iterate over each small area
+    for small_area_id, small_area_data in merged_box_small_area_df.groupby('small_area_id'):
+        # Get the number of seats for the current small area and cast it to integer
+        seats_num = int(small_area_data.iloc[0]['seats_num'])
+
+        # Sort candidates within each small area by rank_within_small_area
+        small_area_data.sort_values(by='rank_within_small_area', inplace=True)
+
+        # Assign seats to candidates based on their rank and the number of seats allocated to the list
+        for seat_number, user_id in enumerate(small_area_data['user_id'].iloc[:seats_num], start=1):
+            # Get the list_id corresponding to the user_id
+            user_list_id = user_to_list_mapping.get(user_id, None)
+           # Append the user_id, list_id, seat_allocation, and list_seats_num to the list of data
+            seats_distribution_data.append({
+                'small_area_id': small_area_id,
+                'seat_number': seat_number,
+                'user_id': user_id,
+                'list_id': user_list_id
+            })
+
+    # Create the seats_distribution_df DataFrame from the list of data
+    seats_distribution_df = pd.DataFrame(seats_distribution_data)
+
+    # Display the resulting DataFrame
+    print("\nSeats Distribution DataFrame:")
+    print(seats_distribution_df)
 
 
-# Retrieve command line arguments
-candidates_json = sys.argv[1]
-# small_area_json = sys.argv[2]
-# box_json = sys.argv[3]
 
-# # Deserialize JSON strings into Python lists
-# candidates = dict(candidates_json)
+    # Create the SQLAlchemy database URL
+    database_url = f"mysql+mysqlconnector://{username}:{password}@{server}/{db_name}"
 
-# # Initialize empty dictionaries for each key
-# data = {}
+    engine = create_engine(database_url)
+    metadata = MetaData()
+    result_table = Table('result', metadata, autoload_with=engine)
+    # Create an insert statement
+    insert_stmt = insert(result_table).values(seats_distribution_df)
 
-# # Iterate through each object in the list
-# for obj in candidates:
-#     # Iterate through each key-value pair in the object
-#     for key, value in obj.items():
-#         # If the key doesn't exist in the result dictionary, create a new list for it
-#         if key not in data:
-#             data[key] = []
-#         # Append the value to the list corresponding to the key
-#         data[key].append(value)
+    # Execute the insert statement
+    with engine.connect() as connection:
+    connection.execute(insert_stmt)
 
-# Print the result dictionary
-print(candidates_json)
-# small_area = json.loads(small_area_json)
-# box = json.loads(box_json)
+except Error as e:
+    print(f"Error: {e}")
 
-# # print(candidates)
-# # print(small_area)
-# # print(box)
-
-# # # data = {element: index for index, element in enumerate(candidates)}
-
-
-# # data = {
-# #     'id': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,23 ,24],
-# #     'firstname': ['John', 'Alice', 'Bob', 'Emily', 'Michael', 'Sarah', 'David', 'Emma', 'James', 'Olivia','John', 'Alice', 'Bob', 'Emily', 'Michael', 'Sarah', 'David', 'Emma', 'James', 'Olivia', 'David', 'Emma', 'James', 'Olivia' ],
-# #     'lastname': ['Doe', 'Smith', 'Johnson', 'Brown', 'Jones', 'Wilson', 'Taylor', 'Anderson', 'Thomas', 'Roberts', 'Doe', 'Smith', 'Johnson', 'Brown', 'Jones', 'Wilson', 'Taylor', 'Ander', 'Thomas', 'Roberts', 'Brown', 'Jones', 'Wilson', 'Taylor'],
-# #     'middlename': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'G', 'H', 'I', 'J'],
-# #     'mothername': ['Anne', 'Mary', 'Jane', 'Emma', 'Sophia', 'Olivia', 'Eva', 'Isabella', 'Grace', 'Charlotte', 'Anne', 'Mary', 'Jane', 'Emma', 'Sophia', 'Olivia', 'Eva', 'Isabella', 'Grace', 'Charlotte', 'Eva', 'Isabella', 'Grace', 'Charlotte'],
-# #     'gender': ['M', 'F', 'M', 'F', 'M', 'F', 'M', 'F', 'M', 'F', 'M', 'F', 'M', 'F', 'M', 'F', 'M', 'F', 'M', 'F', 'M', 'F', 'M', 'F' ],
-# #     'dob': ['1990-01-01', '1992-05-15', '1988-10-20', '1995-03-10', '1985-12-25', '1987-06-30', '1993-09-05', '1990-04-18', '1989-08-22', '1994-11-12', '1990-01-01', '1992-05-15', '1988-10-20', '1995-03-10', '1985-12-25', '1987-06-30', '1993-09-05', '1990-04-18', '1989-08-22', '1994-11-12', '1987-06-30', '1993-09-05', '1990-04-18', '1989-08-22'],
-# #     'role_id': [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
-# #     'list_id': [1, 2, 1, 3, 2, 3, 1, 2, 3, 1, 1, 2, 1, 3, 2, 3, 1, 2, 3, 1, 2, 3, 2, 3 ],
-# #     'voted': [True, False, True, True, False, True, False, True, False, True, True, False, True, True, False, True, True, True, False, True, False, True, False, True],
-# #     'register_id': [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 107, 108, 109, 110],
-# #     'center_id': [201, 202, 203, 201, 202, 203, 201, 202, 203, 201, 201, 202, 203, 201, 202, 203, 201, 202, 203, 201, 201, 202, 203, 201],
-# #     'small_area_id': [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4]
-# # }
-
-# # Sample register data
-# register_data = {
-#     'register_id': [101, 102, 103, 104, 105, 106, 107, 108, 109, 110],
-#     'record_id': [201, 202, 203, 204, 205, 206, 207, 208, 209, 210]
-# }
-
-# # Sample record data
-# record_data = {
-#     'record_id': [201, 202, 203, 204, 205, 206, 207, 208, 209, 210],
-#     'small_area_id': [1, 2, 3, 4,1, 2, 3, 4,1, 2]
-# }
-
-# # Sample small_area data
-# small_area_data = {
-#     'small_area_id': [1, 2, 3, 4],
-#     'big_area_id': [1, 1, 1, 1],
-#     'priority': [1, 2, 3, 4],
-#     'seats_num': [4, 2, 1, 1]
-# }
-
-# # Sample big_area data
-# big_area_data = {
-#     'big_area_id': [1],
-#     'area_name': ['North']
-# }
-
-# # Create DataFrames
-# merged_df = pd.DataFrame(data)
-# register_df = pd.DataFrame(register_data)
-# record_df = pd.DataFrame(record_data)
-# small_area_df = pd.DataFrame(small_area_data)
-# big_area_df = pd.DataFrame(big_area_data)
-
-# # Generate box data
-# box_data = {
-#     'id': range(1, len(data['id']) + 1),  # Assign a unique box ID for each candidate
-#     'user_id': data['id'],
-#     'vote_number_result': [random.randint(0, 100) for _ in range(len(data['id']))]  # Generate random vote numbers for demonstration
-# }
-
-# # Create DataFrame for box data
-# box_df = pd.DataFrame(box_data)
-
-
-
-# # Assuming there are 8 seats available
-# total_seats = 8
-
-# # Calculate total votes per list
-# total_votes_per_list = merged_df.groupby('list_id')['voted'].sum()
-
-
-
-# # Calculate the total number of votes across all lists
-# total_votes = total_votes_per_list.sum()
-
-# # Calculate the quotient of all lists
-# first_quotient_lists = total_votes / total_seats
-
-# # Compare total votes per list with the quotient
-# first_result = total_votes_per_list[total_votes_per_list >= first_quotient_lists]
-
-# #1  3   /   2     1/ 3     2
-
-# # Get the failed lists (lists with total votes less than the second quotient)
-# failed_lists = total_votes_per_list[total_votes_per_list < first_quotient_lists]
-
-# # Get the total vote numbers of the failed lists
-# failed_lists_total_votes = total_votes_per_list[total_votes_per_list < first_quotient_lists].sum()
-
-# # Calculate the difference between total votes and total votes per list
-# second_quotient_lists = (total_votes - failed_lists_total_votes) / total_seats
-
-# # Return the division result
-# division_result = first_result / second_quotient_lists
-
-# # Calculate the fractional part of the division result
-# fractional_part = division_result - division_result.astype(int)
-
-# # Sort the lists by their fractional part in descending order
-# sorted_lists_by_fractional = fractional_part.sort_values(ascending=False)
-
-# # Get the index of the list with the highest fractional part
-# index_of_winner = sorted_lists_by_fractional.index[0]
-
-# # Get the integer part of the division result
-# seat_number_of_each_list = division_result.astype(int)
-
-# # Replace the list with the highest fractional part with index_of_winner
-# seat_number_of_each_list[index_of_winner] += 1
-
-
-
-# # print(seat_number_of_each_list)
-
-# # Merge the total votes for each combination with the box_df DataFrame
-# box_df = pd.merge(box_df, merged_df[['small_area_id', 'list_id']], left_on='user_id', right_index=True, how='left')
-
-# # Group box_df by small_area_id and calculate the sum of vote_number_result
-# sum_of_votes_per_small_area = box_df.groupby('small_area_id')['vote_number_result'].sum()
-
-# # Merge the sum_of_votes_per_small_area back into box_df
-# box_df = pd.merge(box_df, sum_of_votes_per_small_area, on='small_area_id', suffixes=('', '_sum'))
-# # print(box_df)
-
-# # Calculate the percentage of vote_number_result for each candidate
-# box_df['percentage_of_votes_per_small_area'] = (box_df['vote_number_result'] / box_df['vote_number_result_sum']) * 100
-
-# # Sort candidates within each list by vote_number_result_sum
-# box_df['rank_within_list'] = box_df.groupby('list_id')['percentage_of_votes_per_small_area'].rank(ascending=False)
-
-# # Sort candidates within each small area by vote_number_result_sum
-# box_df['rank_within_small_area'] = box_df.groupby('small_area_id')['percentage_of_votes_per_small_area'].rank(ascending=False)
-
-
-# # Merge the box_df DataFrame with the small_area_df DataFrame to get the rank_within_small_area for each user_id
-# merged_box_small_area_df = pd.merge(box_df, small_area_df[['small_area_id', 'seats_num']], on='small_area_id', how='left')
-
-# # Sort the merged DataFrame by small_area_id and rank_within_small_area
-# merged_box_small_area_df.sort_values(by=['small_area_id', 'rank_within_small_area'], inplace=True)
-
-# # Create an empty DataFrame to store the distribution of user_ids among seats
-# seats_distribution_df = pd.DataFrame(columns=['small_area_id', 'seat_number', 'user_id'])
-
-# # Create an empty DataFrame to store the distribution of user_ids among seats
-# seats_distribution_df = pd.DataFrame(columns=['small_area_id', 'seat_number', 'user_id'])
-
-
-
-# # Initialize an empty list to store the data
-# seats_distribution_data = []
-# # Create a dictionary to map user_id to list_id
-# user_to_list_mapping = merged_box_small_area_df.set_index('user_id')['list_id'].to_dict()
-
-# # Iterate over each small area
-# for small_area_id, small_area_data in merged_box_small_area_df.groupby('small_area_id'):
-#     # Get the number of seats for the current small area and cast it to integer
-#     seats_num = int(small_area_data.iloc[0]['seats_num'])
-
-#     # Sort candidates within each small area by rank_within_small_area
-#     small_area_data.sort_values(by='rank_within_small_area', inplace=True)
-
-#     # Get the seat allocations for the current list
-#     list_id = small_area_data['list_id'].iloc[0]
-#     list_seat_allocations = seat_number_of_each_list.get(list_id, None)
-
-#     # Get the seats_number for the current list
-#     list_seats_num = small_area_data.iloc[0]['seats_num']
-
-#     # Convert list_seat_allocations to a numpy array if it's not None
-#     if list_seat_allocations is not None:
-#         list_seat_allocations = np.array(list_seat_allocations)
-
-#     # Assign seats to candidates based on their rank and the number of seats allocated to the list
-#     for seat_number, user_id in enumerate(small_area_data['user_id'].iloc[:seats_num], start=1):
-#         # Check if seat allocations exist for the current list and if the allocation list is not empty
-#         if list_seat_allocations is not None and list_seat_allocations.size > 0:
-#             # Ensure the seat number is within the bounds of the list_seat_allocations
-#             if seat_number <= list_seat_allocations.size:
-#                 # Get the seat allocation for the current candidate
-#                 seat_allocation = list_seat_allocations.item(seat_number - 1)
-#             else:
-#                 # If the seat number exceeds the allocation list size, default to seat_number
-#                 seat_allocation = seat_number
-#         else:
-#             # If no seat allocations exist or the allocation list is empty, default to seat_number
-#             seat_allocation = seat_number
-
-#         # Get the list_id corresponding to the user_id
-#         user_list_id = user_to_list_mapping.get(user_id, None)
-
-#         # Append the user_id, list_id, seat_allocation, and list_seats_num to the list of data
-#         seats_distribution_data.append({'small_area_id': small_area_id, 'seat_number': seat_allocation, 'user_id': user_id, 'list_id': user_list_id, 'seats_number': list_seats_num})
-# # Create the seats_distribution_df DataFrame from the list of data
-# seats_distribution_df = pd.DataFrame(seats_distribution_data)
-
-# # Display the resulting DataFrame
-# # print(seats_distribution_df)
+finally:
+    # Close the cursor and connection if they were opened
+    if 'cursor' in locals() and cursor:
+        cursor.close()
+    if connection.is_connected():
+        connection.close()
+        print("Database connection closed")
