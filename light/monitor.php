@@ -106,16 +106,19 @@
                     <div class="col-12">
                         <div class="row items-align-baseline">
                             <div class="col-md-12 pt-4 mt-4">
+                                <?php if($user['ROLEID'] == 1 && !empty($user['LISTID'])) {
+                                    echo "<h2>My Votes</h2>";
+                                    include "../components/analycis/singleCandidateMonitor.php";
+                            }?>
                                 <h2>List Monitor</h2>
                                 <?php
                                     while ($blist = mysqli_fetch_assoc($get_big_area)) {
-                                        
                                         echo "<h6 class='pt-4'>".$blist['NAME']."</h6>";
                                         
                                         echo "<div class='d-flex flex-row flex-wrap '> ";
                                         mysqli_data_seek($get_list, 0);
                                             while($dlist = mysqli_fetch_assoc($get_list)) {
-                                                if ($dlist['ACCEPTED'] == 1 ){
+                                                if ($dlist['ACCEPTED'] == 1){
                                                     include "../components/analycis/listAnalicys.php";
                                                 }
                                                     } 

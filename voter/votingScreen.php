@@ -66,6 +66,8 @@ $list_query = "SELECT * FROM list";
             <p class="text-center my-0 py-0">and he can also vote for a single candidate in the list he choose! by
                 clicking on the radio botton next to the specific candidate </p>
 
+
+
             <form action='../Logic/voting.php' method='post'>
                 <div class='mt-3'>
                     <button type="submit" class="btn btn-danger px-4">Submit</button>
@@ -75,27 +77,25 @@ $list_query = "SELECT * FROM list";
 
     <div class="px-4 mx-4">
         <?php
-                mysqli_data_seek($get_list, 0);
+                            mysqli_data_seek($get_list, 0);
 
-                    
-                while ($blist = mysqli_fetch_assoc($get_big_area)) {
-                    if ($blist['NAME'] == $user['big_area_name'] ) {
-                        echo "<div class='d-flex flex-row flex-wrap justify-content-between'>";
-                        mysqli_data_seek($get_list, 0);
-                        while($dlist = mysqli_fetch_assoc($get_list)) {
-                            if ($dlist['ACCEPTED'] == 1 ){
-                                include '../components/voting/listVoting.php'; 
-                            }
-                                } 
-                        echo "</div>";
-                        }
-                    }
+                                
+                            while ($blist = mysqli_fetch_assoc($get_big_area)) {
+                                if ($blist['NAME'] == $user['big_area_name'] ) {
+                                    echo "<div class='d-flex flex-row flex-wrap justify-content-between'>";
+                                    mysqli_data_seek($get_list, 0);
+                                    while($dlist = mysqli_fetch_assoc($get_list)) {
+                                        if ($dlist['ACCEPTED'] == 1 ){
+                                            include '../components/voting/listVoting.php'; 
+                                        }
+                                            } 
+                                    echo "</div>";
+                                    }
+                                }
 
-
-        ?>
+                   ?>
         </form>
     </div>
-
 </body>
 
 </html>
@@ -103,5 +103,5 @@ $list_query = "SELECT * FROM list";
 <?php 
 
 }else {
-  header("Location: ../voter/index-02.php");
+    header("Location: ../voter/index-02.php");
 }?>

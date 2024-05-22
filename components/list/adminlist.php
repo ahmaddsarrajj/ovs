@@ -34,7 +34,7 @@
                                         <?php
                                           echo "
                                           <span style='green'>Accepted</span>
-                                          <a class='ml-2 btn btn-danger' href='../../Logic/deleteList.php?listId=".$rowlist['ID']."'>Delete</a>
+                                          <a class='ml-2 btn btn-danger' href='../Logic/deleteList.php?listId=".$rowlist['ID']."'>Delete</a>
                                           ";
                                         
                                       ?>

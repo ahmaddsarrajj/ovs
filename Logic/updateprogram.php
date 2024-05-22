@@ -45,7 +45,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $update_url_facebook = "UPDATE url SET SRC = '$url_facebook' WHERE ID =". $facebook_id;
       $url_fac = mysqli_query($conn, $update_url_facebook);
     }else {
-      $insert_url_facebook = "INSERT INTO `url`(`SRC`, `ELECTIONPROGRAMID`, `SOCIALMEDIAID`) VALUES ( '$url_facebook', $program_id, 1)"; 
+      $insert_url_facebook = "INSERT INTO `url`(`SRC`, `ELECTIONPROGRAMID`, `SOCIALMEDIAID`) VALUES ( '$url_facebook', $program_id, 2)"; 
       $url_fac = mysqli_query($conn, $insert_url_facebook);
     }
   }
@@ -71,7 +71,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   $update_url_x = "UPDATE url SET SRC = '$url_x' WHERE ID =". $x_id;
   $url_x = mysqli_query($conn, $update_url_x);
   }else {
-    $insert_url_x = "INSERT INTO `url`(`SRC`, `ELECTIONPROGRAMID`, `SOCIALMEDIAID`) VALUES ( '$url_x', $program_id, 1)"; 
+    $insert_url_x = "INSERT INTO `url`(`SRC`, `ELECTIONPROGRAMID`, `SOCIALMEDIAID`) VALUES ( '$url_x', $program_id, 3)"; 
     $url_x = mysqli_query($conn, $insert_url_x);
   }
 
@@ -85,7 +85,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $update_url_linkedin = "UPDATE url SET SRC = '$url_linkedin' WHERE ID =". $linkedin_id;
       $url_linkedin = mysqli_query($conn, $update_url_linkedin);
     }else {
-      $insert_url_linkedin = "INSERT INTO `url`(`SRC`, `ELECTIONPROGRAMID`, `SOCIALMEDIAID`) VALUES ( '$url_linkedin', $program_id, 1)"; 
+      $insert_url_linkedin = "INSERT INTO `url`(`SRC`, `ELECTIONPROGRAMID`, `SOCIALMEDIAID`) VALUES ( '$url_linkedin', $program_id, 4)"; 
       $url_linkedin = mysqli_query($conn, $insert_url_linkedin);
     }
   }

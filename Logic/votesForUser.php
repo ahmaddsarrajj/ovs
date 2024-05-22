@@ -11,7 +11,7 @@
             }
             
         }else {
-            $update_box_query = "UPDATE `box` SET `VOTENUMBER`= ".$box['VOTENUMBER']+ 1 ." WHERE USERID = ".$vote;
+            $update_box_query = "UPDATE `box` SET `VOTENUMBER`= ".($box['VOTENUMBER']+ 1) ." WHERE USERID = ".$vote;
             $update_box = mysqli_query($conn, $update_box_query);
             
             if($update_box) {

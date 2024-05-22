@@ -16,6 +16,10 @@
   $big_area_query = "SELECT * FROM bigarea"; 
   $get_big_area =  mysqli_query($conn,$big_area_query);
 
+  $get_celebration_query = "SELECT * from celebration where ID = 1";
+    $get_celebration =  mysqli_query($conn, $get_celebration_query);
+    $celebration = mysqli_fetch_assoc($get_celebration);
+
 
   if ($user) {
 ?>
@@ -108,33 +112,17 @@
                             <div class="col">
                                 <h2 class="h5 page-title">Welcome Mr. <?php echo $user["FIRSTNAME"];?>!</h2>
                             </div>
-                            <div class="col-auto">
-                                <form class="form-inline">
-                                    <div class="form-group d-none d-lg-inline">
-                                        <label for="reportrange" class="sr-only">Date Ranges</label>
-                                        <div id="reportrange" class="px-2 py-2 text-muted">
-                                            <span class="small"></span>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <button type="button" class="btn btn-sm"><span
-                                                class="fe fe-refresh-ccw fe-16 text-muted"></span></button>
-                                        <button type="button" class="btn btn-sm mr-2"><span
-                                                class="fe fe-filter fe-16 text-muted"></span></button>
-                                    </div>
-                                </form>
-                            </div>
                         </div>
+
+                        <?php
+                                if($user['ROLEID'] == 2) {
+                                include "../components/starting.php"; 
+                        }?>
+
                         <div class="row items-align-baseline">
 
 
 
-                            <?php if($user['ROLEID'] == 1 && !empty($user['LISTID'])) {
-                               include "../components/analycis/singleCandidateMonitor.php";
-                            }?>
-                            <?php if($user['ROLEID'] == 1 ) {
-                               include "../components/analycis/candidateListMonitor.php";
-                            }?>
                             <?php
                                 if($user['ROLEID'] == 2) {
                                 include "../components/analycis/smallCandidate.php"; ?>
@@ -148,8 +136,11 @@
                             <?php include '../components/analycis/smallArea.php';
                             } ?>
 
+                            <?php  if($celebration['ENDED']){
+                              include "../components/analycis/resultOfElection.php"; 
+                            }   ?>
                         </div>
-                    </div> <!-- .row-->
+                    </div>
                 </div> <!-- .col-12 -->
             </div> <!-- .row -->
     </div> <!-- .container-fluid -->

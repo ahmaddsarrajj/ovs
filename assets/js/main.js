@@ -100,7 +100,7 @@
          *  countdown
          * ---------------------------*/
         if ($("#mycountdown").length > 0) {
-            $("#mycountdown").countdown("2024/05/20", function(event) {
+            $("#mycountdown").countdown("2024/05/23", function(event) {
                 $('.month').text(
                     event.strftime('%m')
                 );

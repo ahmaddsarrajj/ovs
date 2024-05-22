@@ -8,6 +8,10 @@ $list_query = "SELECT * FROM list";
   $big_area_query = "SELECT * FROM bigarea"; 
   $get_big_area =  mysqli_query($conn,$big_area_query);
 
+  $get_celebration_query = "SELECT * from celebration where ID = 1";
+     $get_celebration =  mysqli_query($conn, $get_celebration_query);
+     $celebration = mysqli_fetch_assoc($get_celebration);
+
 ?>
 
 <!DOCTYPE html>
@@ -165,10 +169,18 @@ $list_query = "SELECT * FROM list";
 
 
             <div class="btn-wrapper vote-btn">
-                <button type="submit" class="boxed-btn btn-sanatory">
+                <?php if($celebration['STARTDATE']) { 
+                echo "<button type='submit' class='boxed-btn btn-sanatory'>
                     Verify
-                    <i class="fas fa-vote-yea"></i>
-                </button>
+                    <i class='fas fa-vote-yea'></i>
+                </button>";
+            }else{
+                echo "<button type='submit' class='boxed-btn btn-sanatory ' disabled>
+                Verify
+                <i class='fas fa-vote-yea'></i>
+            </button> ";  
+            }
+                ?>
             </div>
         </form>
     </div>
@@ -645,7 +657,7 @@ $list_query = "SELECT * FROM list";
 
     <!-- Testimonial Section-02 Start -->
     <div class="testimonial-section-area people-say testimonial-bg-02 margin-top-90"
-        style="background-image: url(../assets/img/team-02.png);">
+        style="background-image: url(../assets/img/image-election-program.png);">
         <div class="shapes political-shape">
             <img src="../assets/img/shape-04.png" class="shape-01" alt="">
             <img src="../assets/img/shape-03.png" class="shape-02" alt="">
@@ -757,8 +769,44 @@ $list_query = "SELECT * FROM list";
             </div>
         </div>
     </div>
-    <!-- News Section End  -->
 
+    <?php 
+     
+
+     if($celebration['ENDED']){
+        ?>
+    <div class="news-section-start" id='lists'>
+        <div class="container">
+            <div class="col-md-12 pt-4 mt-4 party-single-item" style="width: 100%;">
+                <div class="content" id="candidate">
+                    <div class="subtitle wow animate__animated animate__fadeInUp d-flex flex-row">
+                        <h2>The Winner Candidates</h2>
+                        <div class="icon d-flex align-items-center pl-2">
+                            <i class="icon-star"></i>
+                            <i class="icon-star"></i>
+                            <i class="icon-star"></i>
+                        </div>
+                    </div>
+                    <p style='width: 100%' class="description wow animate__animated animate__fadeInUp">
+                        Congratulations on winning the election! Your victory is a testament to your dedication and
+                        commitment to shaping the future of our community or country.
+                        As a winner, you now have the opportunity to represent the interests and concerns of your fellow
+                        citizens, advocate for positive change,
+                        and make meaningful contributions to the democratic process. Your success is an inspiration to
+                        us all, and we look forward to the
+                        positive impact you will undoubtedly bring in your new role.
+                    </p>
+                </div>
+
+                <?php
+                    include "../components/analycis/resultOfElection.php";                            
+                ?>
+
+            </div>
+        </div>
+    </div>
+    <!-- News Section End  -->
+    <?php } ?>
     <!-- footer area start -->
     <footer class="footer-area"
         style="background-image: url(../assets/img/footer-bg-022.png); background-size:cover; background-repeat: no-repeat; width: 100%">

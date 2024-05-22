@@ -209,8 +209,8 @@ try:
     seats_distribution_df = pd.DataFrame(seats_distribution_data)
 
     # Display the resulting DataFrame
-    print("\nSeats Distribution DataFrame:")
-    print(seats_distribution_df)
+    # print("\nSeats Distribution DataFrame:")
+    # print(seats_distribution_df)
 
 
 
@@ -218,14 +218,8 @@ try:
     database_url = f"mysql+mysqlconnector://{username}:{password}@{server}/{db_name}"
 
     engine = create_engine(database_url)
-    metadata = MetaData()
-    result_table = Table('result', metadata, autoload_with=engine)
-    # Create an insert statement
-    insert_stmt = insert(result_table).values(seats_distribution_df)
-
-    # Execute the insert statement
-    with engine.connect() as connection:
-    connection.execute(insert_stmt)
+    # Use pandas to_sql method to insert the DataFrame into the 'result' table
+    seats_distribution_df.to_sql('result', con=engine, if_exists='append', index=False)
 
 except Error as e:
     print(f"Error: {e}")

@@ -105,7 +105,7 @@ $result = $conn->query($sql);
                                       </div>
                                     </td>
                                     <td>".$row['ID']."</td>
-                                    <td>".$row['FIRSTNAME']. $row['MIDDLENAME']. $row['LASTNAME']."</td>
+                                    <td>".$row['FIRSTNAME']." ". $row['MIDDLENAME']." ". $row['LASTNAME']."</td>
                                     <td>".$row['MOTHERNAME']."</td>";
                                     if ($row['GENDER'] == 1){
                                       echo "
